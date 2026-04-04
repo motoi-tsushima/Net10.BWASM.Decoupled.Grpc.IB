@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+option csharp_namespace = "IssueBoard.Grpc";
+
+package issueboard;
+
+import "google/protobuf/timestamp.proto";
+
+service IssueBoardService {
+  rpc GetIssues (GetIssuesRequest) returns (GetIssuesReply);
+  rpc GetIssue (GetIssueRequest) returns (GetIssueReply);
+  rpc CreateIssue (CreateIssueRequest) returns (CreateIssueReply);
+  rpc UpdateIssue (UpdateIssueRequest) returns (UpdateIssueReply);
+  rpc DeleteIssue (DeleteIssueRequest) returns (DeleteIssueReply);
+}
+
+message IssueDto {
+  int32 id = 1;
+  string author_name = 2;
+  google.protobuf.Timestamp created_at = 3;
+  string category = 4;
+  string title = 5;
+  string description = 6;
+  int32 status = 7;
+  string resolution = 8;
+  string resolver_name = 9;
+  google.protobuf.Timestamp resolved_at = 10;
+}
+
+message GetIssuesRequest {}
+
+message GetIssuesReply {
+  repeated IssueDto issues = 1;
+}
+
+message GetIssueRequest {
+  int32 id = 1;
+}
+
+message GetIssueReply {
+  IssueDto issue = 1;
+}
+
+message CreateIssueRequest {
+  string author_name = 1;
+  string category = 2;
+  string title = 3;
+  string description = 4;
+}
+
+message CreateIssueReply {
+  IssueDto issue = 1;
+}
+
+message UpdateIssueRequest {
+  int32 id = 1;
+  string category = 2;
+  string title = 3;
+  string description = 4;
+  int32 status = 5;
+  string resolution = 6;
+  string resolver_name = 7;
+}
+
+message UpdateIssueReply {
+  IssueDto issue = 1;
+}
+
+message DeleteIssueRequest {
+  int32 id = 1;
+}
+
+message DeleteIssueReply {
+  bool success = 1;
+}

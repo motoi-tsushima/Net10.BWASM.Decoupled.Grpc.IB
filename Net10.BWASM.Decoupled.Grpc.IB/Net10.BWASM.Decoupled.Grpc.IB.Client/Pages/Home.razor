@@ -1,0 +1,85 @@
+﻿@page "/"
+@inject IssueBoardService.IssueBoardServiceClient GrpcClient
+@inject NavigationManager Nav
+
+<PageTitle>課題一覧</PageTitle>
+
+<h3>課題一覧</h3>
+
+<div class="mb-3 d-flex justify-content-end">
+    <button class="btn btn-primary" @onclick="GoToCreate">課題登録</button>
+</div>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (issues == null)
+{
+    <p>読み込み中...</p>
+}
+else if (issues.Count == 0)
+{
+    <p>課題が登録されていません。</p>
+}
+else
+{
+    <table class="table table-hover table-striped table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>記入者氏名</th>
+                <th>登録日時</th>
+                <th>カテゴリ名</th>
+                <th>課題タイトル</th>
+                <th>現在の状況</th>
+                <th>解決担当者名</th>
+                <th>最終結果日時</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var issue in issues)
+            {
+                <tr style="cursor:pointer" @onclick="() => GoToDetail(issue.Id)">
+                    <td>@issue.AuthorName</td>
+                    <td>@IssueStatusHelper.FormatDateTime(issue.CreatedAt, "yyyy/MM/dd HH:mm")</td>
+                    <td>@issue.Category</td>
+                    <td>
+                        <a href="/issues/@issue.Id" @onclick:stopPropagation="true">@issue.Title</a>
+                    </td>
+                    <td>@IssueStatusHelper.GetDisplayName(issue.Status)</td>
+                    <td>@issue.ResolverName</td>
+                    <td>@IssueStatusHelper.FormatDateTime(issue.ResolvedAt, "yyyy/MM/dd HH:mm")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<IssueDto>? issues;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadIssues();
+    }
+
+    private async Task LoadIssues()
+    {
+        try
+        {
+            errorMessage = null;
+            var reply = await GrpcClient.GetIssuesAsync(new GetIssuesRequest());
+            issues = [.. reply.Issues];
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"データの読み込みに失敗しました: {ex.Message}";
+            issues = [];
+        }
+    }
+
+    private void GoToCreate() => Nav.NavigateTo("/issues/create");
+    private void GoToDetail(int id) => Nav.NavigateTo($"/issues/{id}");
+}

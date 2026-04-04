@@ -1,0 +1,190 @@
+@page "/issues/{Id:int}/edit"
+@inject IssueBoardService.IssueBoardServiceClient GrpcClient
+@inject NavigationManager Nav
+
+<PageTitle>課題内容編集</PageTitle>
+
+<h3>課題内容編集</h3>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (issue == null && errorMessage == null)
+{
+    <p>読み込み中...</p>
+}
+else if (issue != null)
+{
+    <EditForm Model="model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        <div class="mb-3 row">
+            <label class="col-sm-2 col-form-label">記入者氏名</label>
+            <div class="col-sm-10">
+                <input class="form-control" value="@issue.AuthorName" readonly />
+            </div>
+        </div>
+        <div class="mb-3 row">
+            <label class="col-sm-2 col-form-label">登録日時</label>
+            <div class="col-sm-10">
+                <input class="form-control" value="@IssueStatusHelper.FormatDateTime(issue.CreatedAt, "yyyy/MM/dd HH:mm:ss")" readonly />
+            </div>
+        </div>
+        <div class="mb-3 row">
+            <label class="col-sm-2 col-form-label">カテゴリ名</label>
+            <div class="col-sm-10">
+                <InputText class="form-control" @bind-Value="model.Category" maxlength="30" />
+                <ValidationMessage For="() => model.Category" />
+            </div>
+        </div>
+        <div class="mb-3 row">
+            <label class="col-sm-2 col-form-label">
+                課題タイトル <span class="text-danger">*</span>
+            </label>
+            <div class="col-sm-10">
+                <InputText class="form-control" @bind-Value="model.Title" maxlength="100" />
+                <ValidationMessage For="() => model.Title" />
+            </div>
+        </div>
+        <div class="mb-3 row">
+            <label class="col-sm-2 col-form-label">
+                課題の文面 <span class="text-danger">*</span>
+            </label>
+            <div class="col-sm-10">
+                <InputTextArea class="form-control" @bind-Value="model.Description" rows="5" maxlength="2000" />
+                <ValidationMessage For="() => model.Description" />
+            </div>
+        </div>
+        <div class="mb-3 row">
+            <label class="col-sm-2 col-form-label">
+                現在の状況 <span class="text-danger">*</span>
+            </label>
+            <div class="col-sm-10">
+                <InputSelect class="form-select" @bind-Value="model.Status">
+                    @foreach (var (Value, Label) in IssueStatusHelper.GetAllStatuses())
+                    {
+                        <option value="@Value">@Label</option>
+                    }
+                </InputSelect>
+            </div>
+        </div>
+        <div class="mb-3 row">
+            <label class="col-sm-2 col-form-label">解決の文面</label>
+            <div class="col-sm-10">
+                <InputTextArea class="form-control" @bind-Value="model.Resolution" rows="5" maxlength="2000" />
+                <ValidationMessage For="() => model.Resolution" />
+            </div>
+        </div>
+        <div class="mb-3 row">
+            <label class="col-sm-2 col-form-label">解決担当者名</label>
+            <div class="col-sm-10">
+                <InputText class="form-control" @bind-Value="model.ResolverName" maxlength="50" />
+                <ValidationMessage For="() => model.ResolverName" />
+            </div>
+        </div>
+        <div class="mb-3 row">
+            <label class="col-sm-2 col-form-label">最終結果日時</label>
+            <div class="col-sm-10">
+                <input class="form-control" value="@IssueStatusHelper.FormatDateTime(issue.ResolvedAt, "yyyy/MM/dd HH:mm:ss")" readonly />
+                <small class="text-muted">更新時に自動設定されます。</small>
+            </div>
+        </div>
+        <div class="mb-3 d-flex gap-2">
+            <button type="submit" class="btn btn-primary" disabled="@isSubmitting">更新</button>
+            <button type="button" class="btn btn-secondary" @onclick="GoBack">戻る</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private IssueDto? issue;
+    private EditModel model = new();
+    private string? errorMessage;
+    private bool isSubmitting;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadIssue();
+    }
+
+    private async Task LoadIssue()
+    {
+        try
+        {
+            errorMessage = null;
+            issue = null;
+            var reply = await GrpcClient.GetIssueAsync(new GetIssueRequest { Id = Id });
+            issue = reply.Issue;
+            model = new EditModel
+            {
+                Category = issue.Category,
+                Title = issue.Title,
+                Description = issue.Description,
+                Status = issue.Status,
+                Resolution = issue.Resolution,
+                ResolverName = issue.ResolverName,
+            };
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"データの読み込みに失敗しました: {ex.Message}";
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (isSubmitting) return;
+        isSubmitting = true;
+        try
+        {
+            errorMessage = null;
+            await GrpcClient.UpdateIssueAsync(new UpdateIssueRequest
+            {
+                Id = Id,
+                Category = model.Category ?? string.Empty,
+                Title = model.Title,
+                Description = model.Description,
+                Status = model.Status,
+                Resolution = model.Resolution ?? string.Empty,
+                ResolverName = model.ResolverName ?? string.Empty,
+            });
+            Nav.NavigateTo($"/issues/{Id}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"更新に失敗しました: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void GoBack() => Nav.NavigateTo($"/issues/{Id}");
+
+    private sealed class EditModel
+    {
+        [MaxLength(30, ErrorMessage = "カテゴリ名は30文字以内で入力してください。")]
+        public string? Category { get; set; }
+
+        [Required(ErrorMessage = "課題タイトルは必須です。")]
+        [MaxLength(100, ErrorMessage = "課題タイトルは100文字以内で入力してください。")]
+        public string Title { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "課題の文面は必須です。")]
+        [MaxLength(2000, ErrorMessage = "課題の文面は2000文字以内で入力してください。")]
+        public string Description { get; set; } = string.Empty;
+
+        public int Status { get; set; }
+
+        [MaxLength(2000, ErrorMessage = "解決の文面は2000文字以内で入力してください。")]
+        public string? Resolution { get; set; }
+
+        [MaxLength(50, ErrorMessage = "解決担当者名は50文字以内で入力してください。")]
+        public string? ResolverName { get; set; }
+    }
+}

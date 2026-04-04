@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Api.Grpc.IssueBoard/Api.Grpc.IssueBoard.csproj" />
+  <Project Path="Net10.BWASM.Decoupled.Grpc.IB/Net10.BWASM.Decoupled.Grpc.IB.Client/Net10.BWASM.Decoupled.Grpc.IB.Client.csproj" />
+  <Project Path="Net10.BWASM.Decoupled.Grpc.IB/Net10.BWASM.Decoupled.Grpc.IB/Net10.BWASM.Decoupled.Grpc.IB.csproj" />
+</Solution>

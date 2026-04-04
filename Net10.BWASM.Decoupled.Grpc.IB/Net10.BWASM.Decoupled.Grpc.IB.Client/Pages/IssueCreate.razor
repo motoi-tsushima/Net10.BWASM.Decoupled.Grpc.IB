@@ -1,0 +1,116 @@
+@page "/issues/create"
+@inject IssueBoardService.IssueBoardServiceClient GrpcClient
+@inject NavigationManager Nav
+@inject LocalStorageService LocalStorage
+
+<PageTitle>課題新規登録</PageTitle>
+
+<h3>課題新規登録</h3>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+<EditForm Model="model" OnValidSubmit="HandleSubmit">
+    <DataAnnotationsValidator />
+
+    <div class="mb-3 row">
+        <label class="col-sm-2 col-form-label">
+            記入者氏名 <span class="text-danger">*</span>
+        </label>
+        <div class="col-sm-10">
+            <InputText class="form-control" @bind-Value="model.AuthorName" maxlength="50" />
+            <ValidationMessage For="() => model.AuthorName" />
+        </div>
+    </div>
+    <div class="mb-3 row">
+        <label class="col-sm-2 col-form-label">カテゴリ名</label>
+        <div class="col-sm-10">
+            <InputText class="form-control" @bind-Value="model.Category" maxlength="30" />
+            <ValidationMessage For="() => model.Category" />
+        </div>
+    </div>
+    <div class="mb-3 row">
+        <label class="col-sm-2 col-form-label">
+            課題タイトル <span class="text-danger">*</span>
+        </label>
+        <div class="col-sm-10">
+            <InputText class="form-control" @bind-Value="model.Title" maxlength="100" />
+            <ValidationMessage For="() => model.Title" />
+        </div>
+    </div>
+    <div class="mb-3 row">
+        <label class="col-sm-2 col-form-label">
+            課題の文面 <span class="text-danger">*</span>
+        </label>
+        <div class="col-sm-10">
+            <InputTextArea class="form-control" @bind-Value="model.Description" rows="5" maxlength="2000" />
+            <ValidationMessage For="() => model.Description" />
+        </div>
+    </div>
+    <div class="mb-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">登録</button>
+        <button type="button" class="btn btn-secondary" @onclick="GoBack">戻る</button>
+    </div>
+</EditForm>
+
+@code {
+    private CreateModel model = new();
+    private string? errorMessage;
+    private bool isSubmitting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var savedName = await LocalStorage.GetItemAsync("authorName");
+        if (!string.IsNullOrEmpty(savedName))
+            model.AuthorName = savedName;
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (isSubmitting) return;
+        isSubmitting = true;
+        try
+        {
+            errorMessage = null;
+            await GrpcClient.CreateIssueAsync(new CreateIssueRequest
+            {
+                AuthorName = model.AuthorName,
+                Category = model.Category ?? string.Empty,
+                Title = model.Title,
+                Description = model.Description,
+            });
+            await LocalStorage.SetItemAsync("authorName", model.AuthorName);
+            Nav.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"登録に失敗しました: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void GoBack() => Nav.NavigateTo("/");
+
+    private sealed class CreateModel
+    {
+        [Required(ErrorMessage = "記入者氏名は必須です。")]
+        [MaxLength(50, ErrorMessage = "記入者氏名は50文字以内で入力してください。")]
+        public string AuthorName { get; set; } = string.Empty;
+
+        [MaxLength(30, ErrorMessage = "カテゴリ名は30文字以内で入力してください。")]
+        public string? Category { get; set; }
+
+        [Required(ErrorMessage = "課題タイトルは必須です。")]
+        [MaxLength(100, ErrorMessage = "課題タイトルは100文字以内で入力してください。")]
+        public string Title { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "課題の文面は必須です。")]
+        [MaxLength(2000, ErrorMessage = "課題の文面は2000文字以内で入力してください。")]
+        public string Description { get; set; } = string.Empty;
+    }
+}

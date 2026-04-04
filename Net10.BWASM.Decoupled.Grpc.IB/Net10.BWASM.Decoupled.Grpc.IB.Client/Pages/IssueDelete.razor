@@ -1,0 +1,116 @@
+@page "/issues/{Id:int}/delete"
+@inject IssueBoardService.IssueBoardServiceClient GrpcClient
+@inject NavigationManager Nav
+
+<PageTitle>課題削除確認</PageTitle>
+
+<h3>課題削除確認</h3>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (issue == null && errorMessage == null)
+{
+    <p>読み込み中...</p>
+}
+else if (issue != null)
+{
+    <div class="alert alert-warning">
+        <strong>この課題を削除してもよろしいですか？</strong>
+    </div>
+
+    <table class="table table-bordered">
+        <tbody>
+            <tr>
+                <th style="width:160px">記入者氏名</th>
+                <td>@issue.AuthorName</td>
+            </tr>
+            <tr>
+                <th>登録日時</th>
+                <td>@IssueStatusHelper.FormatDateTime(issue.CreatedAt, "yyyy/MM/dd HH:mm:ss")</td>
+            </tr>
+            <tr>
+                <th>カテゴリ名</th>
+                <td>@issue.Category</td>
+            </tr>
+            <tr>
+                <th>課題タイトル</th>
+                <td>@issue.Title</td>
+            </tr>
+            <tr>
+                <th>課題の文面</th>
+                <td style="white-space:pre-wrap">@issue.Description</td>
+            </tr>
+            <tr>
+                <th>現在の状況</th>
+                <td>@IssueStatusHelper.GetDisplayName(issue.Status)</td>
+            </tr>
+            <tr>
+                <th>解決の文面</th>
+                <td style="white-space:pre-wrap">@issue.Resolution</td>
+            </tr>
+            <tr>
+                <th>解決担当者名</th>
+                <td>@issue.ResolverName</td>
+            </tr>
+            <tr>
+                <th>最終結果日時</th>
+                <td>@IssueStatusHelper.FormatDateTime(issue.ResolvedAt, "yyyy/MM/dd HH:mm:ss")</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="mb-3 d-flex gap-2">
+        <button class="btn btn-danger" @onclick="HandleDelete" disabled="@isDeleting">削除</button>
+        <button class="btn btn-secondary" @onclick="GoBack">戻る</button>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private IssueDto? issue;
+    private string? errorMessage;
+    private bool isDeleting;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadIssue();
+    }
+
+    private async Task LoadIssue()
+    {
+        try
+        {
+            errorMessage = null;
+            issue = null;
+            var reply = await GrpcClient.GetIssueAsync(new GetIssueRequest { Id = Id });
+            issue = reply.Issue;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"データの読み込みに失敗しました: {ex.Message}";
+        }
+    }
+
+    private async Task HandleDelete()
+    {
+        if (isDeleting) return;
+        isDeleting = true;
+        try
+        {
+            errorMessage = null;
+            await GrpcClient.DeleteIssueAsync(new DeleteIssueRequest { Id = Id });
+            Nav.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"削除に失敗しました: {ex.Message}";
+            isDeleting = false;
+        }
+    }
+
+    private void GoBack() => Nav.NavigateTo($"/issues/{Id}");
+}
